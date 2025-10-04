@@ -1,30 +1,33 @@
 /**
  * @fileoverview Firestore Security Rules for Hermes Mail.
  *
- * Core Philosophy: This ruleset enforces a strict user-ownership model, where each user can only access their own data.
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Only the authenticated user
+ * can read and write their own data. Data is organized under user-specific paths
+ * to simplify authorization logic and eliminate the need for denormalization.
  *
  * Data Structure:
- * - All data is nested under `/users/{userId}`, ensuring clear ownership.
- * - Gmail messages and labels are stored as subcollections under each user.
+ * - /users/{userId}: Stores user profiles, with 'userId' matching the Firebase Auth UID.
+ * - /users/{userId}/emails/{emailId}: Stores emails owned by a specific user.
+ * - /users/{userId}/labels/{labelId}: Stores labels created by a specific user.
  *
  * Key Security Decisions:
- * - User listing is implicitly disallowed by the absence of a top-level listing rule on `/users`.
- * - Path-based ownership is the primary mechanism for access control.
- * - All writes are validated to ensure the authenticated user ID matches the user ID in the path.
- *
- * Denormalization for Authorization: The data structure denormalizes user ownership via path-based nesting, eliminating the need for additional `get()` calls in rules.
+ * - User listing is implicitly denied (no top-level `list` on `/users`).
+ * - All write operations require user authentication (`request.auth != null`).
+ * - Relational integrity is enforced on create operations to link documents to their owners.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows a user to read and write their own user profile.
+     * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (create) User with `auth.uid` matching `userId` can create their profile.
-     * @allow (get, update, delete) User with `auth.uid` matching `userId` can read and update their profile.
-     * @deny (create, get, update, delete) User with `auth.uid` not matching `userId` cannot access this data.
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @allow (create) - Authenticated user can create their own profile, with user ID matching auth UID.
+     * @allow (get, update, delete) - Authenticated user can read, update, and delete their own profile.
+     * @deny (create) - If the user ID does not match the auth UID.
+     * @deny (get, update, delete) - If the user is not authenticated or user ID does not match auth UID.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
       function isSignedIn() {
@@ -35,27 +38,23 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == request.auth.uid;
+      allow update: if isSignedIn() && isOwner(userId) && resource.data.id == request.resource.data.id;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Allows a user to read and write their own Gmail messages.
-     * @path /users/{userId}/gmailMessages/{messageId}
-     * @allow (create) User with `auth.uid` matching `userId` can create messages under their user ID.
-     * @allow (get, update, delete) User with `auth.uid` matching `userId` can read and update messages under their user ID.
-     * @deny (create, get, update, delete) User with `auth.uid` not matching `userId` cannot access this data.
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @description Controls access to email documents for a specific user.
+     * @path /users/{userId}/emails/{emailId}
+     * @allow (create) - Authenticated user can create emails under their own user ID.
+     * @allow (get, list, update, delete) - Authenticated user can read, list, update, and delete their own emails.
+     * @deny (create, get, list, update, delete) - If the user is not authenticated or user ID does not match.
+     * @principle Restricts access to a user's own email data.
      */
-    match /users/{userId}/gmailMessages/{messageId} {
-       function isSignedIn() {
+    match /users/{userId}/emails/{emailId} {
+      function isSignedIn() {
         return request.auth != null;
       }
 
@@ -63,27 +62,23 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
-       function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isSignedIn() && isOwner(userId) && resource != null && resource.data.userId == request.resource.data.userId;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Allows a user to read and write their own Gmail labels.
-     * @path /users/{userId}/gmailLabels/{labelId}
-     * @allow (create) User with `auth.uid` matching `userId` can create labels under their user ID.
-     * @allow (get, update, delete) User with `auth.uid` matching `userId` can read and update labels under their user ID.
-     * @deny (create, get, update, delete) User with `auth.uid` not matching `userId` cannot access this data.
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @description Controls access to label documents for a specific user.
+     * @path /users/{userId}/labels/{labelId}
+     * @allow (create) - Authenticated user can create labels under their own user ID.
+     * @allow (get, list, update, delete) - Authenticated user can read, list, update, and delete their own labels.
+     * @deny (create, get, list, update, delete) - If the user is not authenticated or user ID does not match.
+     * @principle Restricts access to a user's own label data.
      */
-    match /users/{userId}/gmailLabels/{labelId} {
-       function isSignedIn() {
+    match /users/{userId}/labels/{labelId} {
+      function isSignedIn() {
         return request.auth != null;
       }
 
@@ -91,16 +86,11 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isSignedIn() && isOwner(userId) && resource != null && resource.data.userId == request.resource.data.userId;
+      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
     }
   }
 }
