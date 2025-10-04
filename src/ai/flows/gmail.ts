@@ -4,7 +4,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { google } from 'googleapis';
 import type { Mail } from '@/lib/types';
-import { authPolicy } from 'genkit/auth';
 
 const gmail = google.gmail('v1');
 
@@ -16,6 +15,14 @@ export const listMessagesFlow = ai.defineFlow(
     authPolicy: async (auth, input) => {
       if (!auth) {
         throw new Error('Authorization required.');
+      }
+      if (!auth.google) {
+          throw new Error('Google Authorization required.');
+      }
+      const requiredScopes = ['https://www.googleapis.com/auth/gmail.readonly'];
+      const userScopes = auth.google.scope.split(' ');
+      if (!requiredScopes.every(scope => userScopes.includes(scope))) {
+        throw new Error(`Missing required scopes. Required: ${requiredScopes.join(', ')}`);
       }
     },
   },
