@@ -41,12 +41,7 @@ export default function Home() {
     const provider = new GoogleAuthProvider();
     provider.addScope("https://www.googleapis.com/auth/gmail.readonly");
     try {
-      const result: UserCredential = await signInWithPopup(auth, provider);
-      const additionalUserInfo = getAdditionalUserInfo(result);
-      const accessToken = (additionalUserInfo?.profile as any)?.accessToken;
-      if (accessToken) {
-        console.error("Access token not found");
-      }
+      await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Error signing in with Google", error);
       toast({
