@@ -4,17 +4,15 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { google } from 'googleapis';
 import type { Mail } from '@/lib/types';
+import { authPolicy } from 'genkit/auth';
 
 const gmail = google.gmail('v1');
 
 async function getOauth2Client(flow: any) {
-  const user = await flow.getAuthenticatedUser();
-  if (!user) {
+  if (!flow.auth) {
     throw new Error('User not authenticated');
   }
-
-  // The user object from Genkit with the 'google' provider contains the OAuth token.
-  const accessToken = user.auth.google?.accessToken;
+  const accessToken = flow.auth.google?.accessToken;
 
   if (!accessToken) {
     throw new Error('Google access token not found.');
@@ -46,6 +44,11 @@ export const listMessagesFlow = ai.defineFlow(
     name: 'listMessagesFlow',
     inputSchema: z.void(),
     outputSchema: z.array(z.any()),
+    authPolicy: async (auth) => {
+        if (!auth) {
+          throw new Error('Authorization required.');
+        }
+    },
   },
   async function (input, flow) {
     const auth = await getOauth2Client(flow);
