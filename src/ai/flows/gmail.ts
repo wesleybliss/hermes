@@ -4,7 +4,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { google } from 'googleapis';
 import type { Mail } from '@/lib/types';
-import { UserCredential } from 'firebase/auth';
 
 const gmail = google.gmail('v1');
 
