@@ -8,8 +8,8 @@ import { UserCredential } from 'firebase/auth';
 
 const gmail = google.gmail('v1');
 
-async function getOauth2Client() {
-  const user = await ai.getAuthenticatedUser();
+async function getOauth2Client(flow: any) {
+  const user = await flow.getAuthenticatedUser();
   if (!user) {
     throw new Error('User not authenticated');
   }
@@ -48,8 +48,8 @@ export const listMessagesFlow = ai.defineFlow(
     inputSchema: z.void(),
     outputSchema: z.array(z.any()),
   },
-  async () => {
-    const auth = await getOauth2Client();
+  async function (input, flow) {
+    const auth = await getOauth2Client(flow);
     const res = await gmail.users.messages.list({ auth, userId: 'me', maxResults: 20 });
     const messages = res.data.messages || [];
 
