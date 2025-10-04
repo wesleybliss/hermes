@@ -8,56 +8,36 @@ import { authPolicy } from 'genkit/auth';
 
 const gmail = google.gmail('v1');
 
-async function getOauth2Client(flow: any) {
-  if (!flow.auth) {
-    throw new Error('User not authenticated');
-  }
-  const accessToken = flow.auth.google?.accessToken;
-
-  if (!accessToken) {
-    throw new Error('Google access token not found.');
-  }
-
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: accessToken });
-  return oauth2Client;
-}
-
-
-function parseEmail(body: string, contentType: string | undefined | null): string {
-    if (!contentType) return body;
-
-    if (contentType.includes('text/plain')) {
-        return body;
-    }
-
-    if (contentType.includes('text/html')) {
-        return body;
-    }
-
-    return `Unsupported content type: ${contentType}`;
-}
-
-
 export const listMessagesFlow = ai.defineFlow(
   {
     name: 'listMessagesFlow',
     inputSchema: z.void(),
     outputSchema: z.array(z.any()),
-    authPolicy: async (auth) => {
-        if (!auth) {
-          throw new Error('Authorization required.');
-        }
+    authPolicy: async (auth, input) => {
+      if (!auth) {
+        throw new Error('Authorization required.');
+      }
     },
   },
   async function (input, flow) {
-    const auth = await getOauth2Client(flow);
-    const res = await gmail.users.messages.list({ auth, userId: 'me', maxResults: 20 });
+    if (!flow.auth) {
+      throw new Error('User not authenticated');
+    }
+    const accessToken = flow.auth.google?.accessToken;
+
+    if (!accessToken) {
+      throw new Error('Google access token not found.');
+    }
+
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: accessToken });
+
+    const res = await gmail.users.messages.list({ auth: oauth2Client, userId: 'me', maxResults: 20 });
     const messages = res.data.messages || [];
 
     const emailPromises = messages.map(async (message) => {
       if (!message.id) return null;
-      const msgRes = await gmail.users.messages.get({ auth, userId: 'me', id: message.id, format: 'full' });
+      const msgRes = await gmail.users.messages.get({ auth: oauth2Client, userId: 'me', id: message.id, format: 'full' });
       const { payload } = msgRes.data;
 
       const headers = payload?.headers || [];
