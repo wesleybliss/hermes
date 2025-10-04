@@ -1,0 +1,106 @@
+/**
+ * @fileoverview Firestore Security Rules for Hermes Mail.
+ *
+ * Core Philosophy: This ruleset enforces a strict user-ownership model, where each user can only access their own data.
+ *
+ * Data Structure:
+ * - All data is nested under `/users/{userId}`, ensuring clear ownership.
+ * - Gmail messages and labels are stored as subcollections under each user.
+ *
+ * Key Security Decisions:
+ * - User listing is implicitly disallowed by the absence of a top-level listing rule on `/users`.
+ * - Path-based ownership is the primary mechanism for access control.
+ * - All writes are validated to ensure the authenticated user ID matches the user ID in the path.
+ *
+ * Denormalization for Authorization: The data structure denormalizes user ownership via path-based nesting, eliminating the need for additional `get()` calls in rules.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Allows a user to read and write their own user profile.
+     * @path /users/{userId}
+     * @allow (create) User with `auth.uid` matching `userId` can create their profile.
+     * @allow (get, update, delete) User with `auth.uid` matching `userId` can read and update their profile.
+     * @deny (create, get, update, delete) User with `auth.uid` not matching `userId` cannot access this data.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows a user to read and write their own Gmail messages.
+     * @path /users/{userId}/gmailMessages/{messageId}
+     * @allow (create) User with `auth.uid` matching `userId` can create messages under their user ID.
+     * @allow (get, update, delete) User with `auth.uid` matching `userId` can read and update messages under their user ID.
+     * @deny (create, get, update, delete) User with `auth.uid` not matching `userId` cannot access this data.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/gmailMessages/{messageId} {
+       function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+       function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows a user to read and write their own Gmail labels.
+     * @path /users/{userId}/gmailLabels/{labelId}
+     * @allow (create) User with `auth.uid` matching `userId` can create labels under their user ID.
+     * @allow (get, update, delete) User with `auth.uid` matching `userId` can read and update labels under their user ID.
+     * @deny (create, get, update, delete) User with `auth.uid` not matching `userId` cannot access this data.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/gmailLabels/{labelId} {
+       function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}

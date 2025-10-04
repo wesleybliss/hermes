@@ -1,0 +1,226 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the Hermes Mail application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "googleId": {
+          "type": "string",
+          "description": "Google ID of the user, obtained through Google OAuth."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user account was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user account was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "googleId",
+        "email",
+        "displayName",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GmailMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GmailMessage",
+      "type": "object",
+      "description": "Represents a Gmail message retrieved from the Gmail API.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GmailMessage entity. This is the Gmail message ID."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N GmailMessage)"
+        },
+        "threadId": {
+          "type": "string",
+          "description": "The ID of the thread the message belongs to."
+        },
+        "snippet": {
+          "type": "string",
+          "description": "A short snippet of the message."
+        },
+        "internalDate": {
+          "type": "number",
+          "description": "The internal date of the message (epoch millis)."
+        },
+        "labelIds": {
+          "type": "array",
+          "description": "References to GmailLabel. (Relationship: GmailMessage N:N GmailLabel)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "payload": {
+          "type": "string",
+          "description": "The raw message payload (Base64 encoded)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the message was added to the local store.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the message was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "threadId",
+        "snippet",
+        "internalDate",
+        "labelIds",
+        "payload",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GmailLabel": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GmailLabel",
+      "type": "object",
+      "description": "Represents a Gmail label (folder) retrieved from the Gmail API.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GmailLabel entity. This is the Gmail label ID."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N GmailLabel)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the label (e.g., 'Inbox', 'Sent', 'MyCustomLabel')."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of the label (e.g., 'SYSTEM', 'USER')."
+        },
+        "messageListVisibility": {
+          "type": "string",
+          "description": "The visibility of the label in the message list."
+        },
+        "labelListVisibility": {
+          "type": "string",
+          "description": "The visibility of the label in the label list."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the label was added to the local store.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the label was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "name",
+        "type",
+        "messageListVisibility",
+        "labelListVisibility",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles.  Access control is enforced via `request.auth.uid == userId`.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/gmailMessages/{messageId}",
+        "definition": {
+          "entityName": "GmailMessage",
+          "schema": {
+            "$ref": "#/backend/entities/GmailMessage"
+          },
+          "description": "Stores Gmail messages associated with a user. Enforces path-based ownership via `/users/{userId}`.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "messageId",
+              "description": "The unique identifier of the Gmail message."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/gmailLabels/{labelId}",
+        "definition": {
+          "entityName": "GmailLabel",
+          "schema": {
+            "$ref": "#/backend/entities/GmailLabel"
+          },
+          "description": "Stores Gmail labels associated with a user. Enforces path-based ownership via `/users/{userId}`.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "labelId",
+              "description": "The unique identifier of the Gmail label."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability for the Hermes Mail application.  The core principle is to avoid `get()` calls in security rules by denormalizing authorization data. This is achieved by storing user-specific data under path-based ownership (`/users/{userId}`). This structure makes security rules simpler and more robust because authorization checks can be performed directly on the requested document without needing to fetch related data.\n\n**Authorization Independence and QAPs:**\n\n*   **Users Collection**: User profiles are stored in `/users/{userId}`. This provides clear ownership. No denormalization is needed here as it's the root user document. Access control is straightforward using `request.auth.uid == userId`.\n*   **Gmail Messages and Labels:** Gmail messages and labels are stored under `/users/{userId}/gmailMessages/{messageId}` and `/users/{userId}/gmailLabels/{labelId}`. This directly associates these entities with their owner. The `userId` field within each message/label document ensures that security rules can enforce ownership without needing to perform additional reads.\n\nThis structure facilitates the required QAPs (Rules are not Filters) by ensuring that list operations are always scoped to a specific user. Rules can efficiently filter based on `request.auth.uid == userId` without needing to inspect the content of each document.\n\n**Denormalization:**\n\n*   Because GmailMessages and GmailLabels are nested under `/users/{userId}`, the structure inherently denormalizes the user-ownership. No additional denormalization is necessary because path-based ownership is used."
+  }
+}
