@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { FirebaseClientProvider } from "@/firebase/client-provider";
 
 export const metadata: Metadata = {
   title: "Hermes Mail",
@@ -24,10 +25,12 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased overflow-hidden">
-        <TooltipProvider delayDuration={0}>
-          {children}
-          <Toaster />
-        </TooltipProvider>
+        <FirebaseClientProvider>
+          <TooltipProvider delayDuration={0}>
+            {children}
+            <Toaster />
+          </TooltipProvider>
+        </FirebaseClientProvider>
       </body>
     </html>
   );
