@@ -7,9 +7,9 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { MailApp } from "@/components/mail/mail-app";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useUser } from "@/firebase";
-import { GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo, UserCredential } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { Button } from "@/components/ui/button";
-import { listMessages } from "@/ai/flows/gmail";
+import { listMessagesFlow } from "@/ai/flows/gmail";
 
 function GoogleIcon() {
   return (
@@ -57,7 +57,7 @@ export default function Home() {
       if (user && mails.length === 0 && !isFetchingMails) {
         setIsFetchingMails(true);
         try {
-          const fetchedMails = await listMessages();
+          const fetchedMails = await listMessagesFlow();
           setMails(fetchedMails);
         } catch (error) {
           console.error("Error fetching emails:", error);

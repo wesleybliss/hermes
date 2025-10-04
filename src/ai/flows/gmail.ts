@@ -82,8 +82,3 @@ export const listMessagesFlow = ai.defineFlow(
     return fullMessages;
   }
 );
-
-
-export async function listMessages(): Promise<Mail[]> {
-    return await listMessagesFlow();
-}
