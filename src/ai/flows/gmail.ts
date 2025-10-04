@@ -14,13 +14,11 @@ async function getOauth2Client() {
     throw new Error('User not authenticated');
   }
 
-  // HACK: This is a hack to get the access token from the user's profile.
-  // In a real application, you would want to securely store and retrieve
-  // the refresh token to generate new access tokens.
-  const accessToken = (user.customData as any)?.stsTokenManager?.accessToken;
+  // The user object from Genkit with the 'google' provider contains the OAuth token.
+  const accessToken = user.auth.google?.accessToken;
 
   if (!accessToken) {
-    throw new Error('Access token not found.');
+    throw new Error('Google access token not found.');
   }
 
   const oauth2Client = new google.auth.OAuth2();
@@ -66,7 +64,7 @@ export const listMessagesFlow = ai.defineFlow(
       const dateHeader = headers.find(h => h.name === 'Date');
       
       const from = fromHeader?.value || 'Unknown Sender';
-      const fromName = from.includes('<') ? from.split('<')[0].trim() : from;
+      const fromName = from.includes('<') ? from.split('<')[0].trim().replace(/"/g, '') : from;
       const fromEmail = from.includes('<') ? from.split('<')[1].replace('>', '') : from;
       
       let body = '';
